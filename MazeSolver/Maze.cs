@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -16,14 +17,18 @@ namespace MazeSolver
         public MazePoint[][] MazePoints { get; set; }
         private MazeSolution _mazeSolution;
         /// <summary>
-        /// Creates a new Maze from a file specified by a path
+        /// Creates a Maze from the specified file path
         /// </summary>
         /// <param name="_path"></param>
         /// <returns></returns>
         public static Maze Parse(string _path)
         {
-            Maze maze = new Maze();
+            if(!File.Exists(_path))
+            {
+                throw new FileNotFoundException();
+            }
             string[] fileLines = System.IO.File.ReadAllLines(_path);
+            Maze maze = new Maze();
             // 0 == Width and Height
             maze.ParseWidthAndHeight(fileLines[0]);
             // 1 == Start X and Y
@@ -40,7 +45,7 @@ namespace MazeSolver
                 int[] passableFlags = ParseLine(fileLines[i]);
                 for (int x = 0; x < maze.Width; x++)
                 {
-                    rowPoints[x] = new MazePoint(x, mazeYIndex, passableFlags[x] == 0);
+                    rowPoints[x] = new MazePoint(x, mazeYIndex, passableFlags[x] == 1);
                 }
                 maze.MazePoints[mazeYIndex] = rowPoints;
                 mazeYIndex++;
@@ -71,17 +76,23 @@ namespace MazeSolver
             return parsedLineElements.ToArray();
         }
         #endregion
-
+        /// <summary>
+        /// Initiates an attempt at solving the maze
+        /// </summary>
         public void TrySolvePath()
         {
             _mazeSolution = new MazeSolution(this);
-            _mazeSolution.TrySolve();
+            _mazeSolution.AttemptSolution();
         }
+        /// <summary>
+        /// Creates and returns a string representation of the current Maze
+        /// </summary>
+        /// <returns></returns>
         public override string ToString()
         {
             if(_mazeSolution == null || !_mazeSolution.IsSolved)
             {
-                return "Cannot be solved";
+                return Resources.CannotBeSolved;
             }
             StringBuilder sb = new StringBuilder();
             foreach(MazePoint[] row in MazePoints)
@@ -92,7 +103,6 @@ namespace MazeSolver
                 }
                 sb.Append(Environment.NewLine);
             }
-
             return sb.ToString();
         }
         

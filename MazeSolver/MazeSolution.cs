@@ -7,49 +7,85 @@ using System.Threading.Tasks;
 
 namespace MazeSolver
 {
+    /// <summary>
+    /// Represents an attempt at solving a Maze
+    /// </summary>
     public class MazeSolution
     {
-        private Maze parent;
+        private static Array Directions = Enum.GetValues(typeof(Direction));
+        /// <summary>
+        /// The maze that this solution corresponds with
+        /// </summary>
+        public Maze Parent { get; private set; }
+        /// <summary>
+        /// boolean indicator as to whether the maze has been successfully solved.
+        /// </summary>
         public bool IsSolved { get; private set; }
+        /// <summary>
+        /// Initializes an Instance of Maze Solution that will use the specified Maze
+        /// </summary>
+        /// <param name="toSolve"></param>
         public MazeSolution(Maze toSolve)
         {
-            parent = toSolve;
+            Parent = toSolve;
         }
-        static Array Directions = Enum.GetValues(typeof(Direction));
-        internal void TrySolve()
+        /// <summary>
+        /// Attempt to Solve the maze
+        /// </summary>
+        public void AttemptSolution()
         {
-            MazePoint start = parent.MazePoints[parent.Start.Y][parent.Start.X];
-            IsSolved = CanBeSolved(start);
+            MazePoint start = Parent.MazePoints[Parent.Start.Y][Parent.Start.X];
+            IsSolved = CanBeSolved(Direction.South, start);
         }
-        private bool CanBeSolved(MazePoint currentPoint)
+        private bool CanBeSolved(Direction lastDirection, MazePoint currentPoint)
         {
             currentPoint.HasBeenReached = true;
-            if(currentPoint.Equals(parent.End))
+            if(currentPoint.Equals(Parent.End))
             {
                 currentPoint.IsPartOfSolution = true;
                 return true;
             }
-            foreach (Direction dirr in Directions)
+            // Try the last Direction we travelled in first
+            // This was introduced to find quicker solutions in very simple mazes i.e. mazes containing few walls
+            if(IsDirectionValid(lastDirection, currentPoint))
             {
-                MazePoint nextPoint;
-                if(CanMoveInDirection(dirr, currentPoint, out nextPoint))
+                return true;
+            }
+            // If the Last Direction wasn't valid try the remaining directions
+            foreach (Direction direction in Directions)
+            {
+                if(direction == lastDirection)
                 {
-                    if(CanBeSolved(nextPoint))
-                    {
-                        currentPoint.IsPartOfSolution = true;
-                        return true;
-                    }
+                    // Skip the Last Direction because we have already tried it
+                    continue;
+                }
+                if(IsDirectionValid(direction, currentPoint))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+        private bool IsDirectionValid(Direction direction, MazePoint currentPoint)
+        {
+            MazePoint nextPoint;
+            if (GetNextPoint(direction, currentPoint, out nextPoint))
+            {
+                if (CanBeSolved(direction, nextPoint))
+                {
+                    currentPoint.IsPartOfSolution = true;
+                    return true;
                 }
             }
             return false;
         }
         /// <summary>
-        /// Indicates whether a solver can move in a direciton
+        /// Returns a boolean indicating whether a solution attempt can move from the specified <paramref name="currentPoint"/> in a specified direciton. <paramref name="nextPoint"/> will be set if the appropriate point if the Direction is valid
         /// </summary>
         /// <param name="direction"></param>
         /// <param name="currentPoint"></param>
         /// <returns></returns>
-        public bool CanMoveInDirection(Direction direction, MazePoint currentPoint, out MazePoint nextPoint)
+        public bool GetNextPoint(Direction direction, MazePoint currentPoint, out MazePoint nextPoint)
         {
             switch (direction)
             {
@@ -64,7 +100,6 @@ namespace MazeSolver
             }
             throw new NotImplementedException();
         }
-
         private bool CanMoveNorth(MazePoint mp, out MazePoint nextPoint)
         {
             if (mp.Y == 0)
@@ -72,27 +107,27 @@ namespace MazeSolver
                 nextPoint = MazePoint.Empty;
                 return false;
             }
-            nextPoint = parent.MazePoints[mp.Y - 1][mp.X];
+            nextPoint = Parent.MazePoints[mp.Y - 1][mp.X];
             return nextPoint.CanBeVisited();
         }
         private bool CanMoveSouth(MazePoint mp, out MazePoint nextPoint)
         {
-            if (mp.Y == parent.Height - 1)
+            if (mp.Y == Parent.Height - 1)
             {
                 nextPoint = MazePoint.Empty;
                 return false;
             }
-            nextPoint = parent.MazePoints[mp.Y + 1][mp.X];
+            nextPoint = Parent.MazePoints[mp.Y + 1][mp.X];
             return nextPoint.CanBeVisited();
         }
         private bool CanMoveEast(MazePoint mp, out MazePoint nextPoint)
         {
-            if (mp.X == parent.Width - 1)
+            if (mp.X == Parent.Width - 1)
             {
                 nextPoint = MazePoint.Empty;
                 return false;
             }
-            nextPoint = parent.MazePoints[mp.Y][mp.X + 1];
+            nextPoint = Parent.MazePoints[mp.Y][mp.X + 1];
             return nextPoint.CanBeVisited();
         }
         private bool CanMoveWest(MazePoint mp, out MazePoint nextPoint)
@@ -102,67 +137,9 @@ namespace MazeSolver
                 nextPoint = MazePoint.Empty;
                 return false;
             }
-            nextPoint = parent.MazePoints[mp.Y][mp.X - 1];
+            nextPoint = Parent.MazePoints[mp.Y][mp.X - 1];
             return nextPoint.CanBeVisited();
         }
     }
-    public class MazePoint
-    {
-        public static readonly MazePoint Empty = new MazePoint();
-        public int X { get; private set; }
-        public int Y { get; private set; }
-        public bool HasBeenReached { get; set; }
-        public bool IsPassable { get; set; }
-        public bool IsPartOfSolution { get; set; }
-        private MazePoint()
-        {
 
-        }
-        public MazePoint(int x, int y, bool passable) 
-        {
-            X = x;
-            Y = y;
-            IsPassable = passable;
-        }
-        public bool Equals(Point p)
-        {
-            return p.X == this.X && p.Y == this.Y;
-        }
-        /// <summary>
-        /// Indicates whether the MazePoint <paramref name="IsPassable"/> and not <paramref name="HasBeenReached"/>
-        /// </summary>
-        /// <returns></returns>
-        public bool CanBeVisited()
-        {
-            return !HasBeenReached && IsPassable;
-        }
-        public string ToString(Maze parent)
-        {
-            if(this.Equals(parent.Start))
-            {
-                return "S";
-            }
-            if(this.Equals(parent.End))
-            {
-                return "E";
-            }
-            if(!this.IsPassable)
-            {
-                return "#";
-            }
-            if(IsPartOfSolution)
-            {
-                return "X";
-            }
-            return " ";
-        }
-
-    }
-    public enum Direction
-    {
-        North,
-        South,
-        East,
-        West
-    }
 }
